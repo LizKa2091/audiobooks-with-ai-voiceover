@@ -1,6 +1,10 @@
 import { stubDelay } from '@/api/stubDelay'
 import type { ReaderBundle } from '@/features/reader/types'
 
+/** Демо-файл для MVP; позже заменится URL с бэкенда. */
+const DEMO_READER_AUDIO_URL =
+  'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
+
 function buildWords(
   sentenceId: string,
   text: string,
@@ -38,7 +42,7 @@ function mockBundle(bookId: string): ReaderBundle {
     bookId,
     title: `Книга «${bookId}» (стаб)`,
     audio: {
-      url: '',
+      url: DEMO_READER_AUDIO_URL,
       durationSec,
     },
     sync: {
