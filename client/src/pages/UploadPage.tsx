@@ -6,6 +6,7 @@ import {
   UPLOAD_PIPELINE_STEPS,
   type UploadPipelineResult,
 } from '@/features/upload/pipeline'
+import { appendUploadedBook, notifyLibraryChanged } from '@/lib/localLibrary'
 import { formatBytes } from '@/lib/formatBytes'
 
 type Phase = 'idle' | 'running' | 'done' | 'error'
@@ -41,6 +42,8 @@ export function UploadPage() {
       const res = await runUploadPipelineStub(file.name, (index) => {
         setCurrentStep(index)
       })
+      appendUploadedBook(res)
+      notifyLibraryChanged()
       setResult(res)
       setPhase('done')
     } catch {
