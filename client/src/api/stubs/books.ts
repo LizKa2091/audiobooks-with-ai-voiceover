@@ -1,4 +1,5 @@
 import { stubDelay } from '@/api/stubDelay'
+import { readStoredUserBooks } from '@/lib/localLibrary'
 import type { BookSummary } from '@/types/book'
 
 const MOCK_BOOKS: BookSummary[] = [
@@ -44,7 +45,17 @@ const MOCK_BOOKS: BookSummary[] = [
   },
 ]
 
+function mergeStubAndUserBooks(
+  stubs: BookSummary[],
+  user: BookSummary[],
+): BookSummary[] {
+  const byId = new Map<string, BookSummary>()
+  for (const b of structuredClone(stubs)) byId.set(b.id, b)
+  for (const b of user) byId.set(b.id, b)
+  return [...byId.values()]
+}
+
 export async function fetchBooks(): Promise<BookSummary[]> {
   await stubDelay()
-  return structuredClone(MOCK_BOOKS)
+  return mergeStubAndUserBooks(MOCK_BOOKS, readStoredUserBooks())
 }

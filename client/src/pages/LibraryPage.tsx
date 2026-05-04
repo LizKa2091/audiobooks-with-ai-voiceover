@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchBooks } from '@/api/stubs/books'
+import { LIBRARY_CHANGED_EVENT } from '@/lib/localLibrary'
 import {
   isLibrarySortKey,
   LIBRARY_SORT_STORAGE_KEY,
@@ -50,7 +51,7 @@ export function LibraryPage() {
   useEffect(() => {
     let cancelled = false
 
-    void (async () => {
+    async function loadBooks() {
       await Promise.resolve()
       if (cancelled) return
       setError(null)
@@ -61,10 +62,18 @@ export function LibraryPage() {
       } catch {
         if (!cancelled) setError('Не удалось загрузить список (заглушка).')
       }
-    })()
+    }
+
+    void loadBooks()
+
+    function onLibraryChanged() {
+      void loadBooks()
+    }
+    window.addEventListener(LIBRARY_CHANGED_EVENT, onLibraryChanged)
 
     return () => {
       cancelled = true
+      window.removeEventListener(LIBRARY_CHANGED_EVENT, onLibraryChanged)
     }
   }, [])
 
@@ -77,8 +86,8 @@ export function LibraryPage() {
     <div className="page page--wide">
       <h1>Библиотека</h1>
       <p className="muted">
-        Плейлист загруженных книг. Данные — из <code>api/stubs/books</code>;
-        сортировка сохраняется в этом браузере.
+        Плейлист: демо-книги из заглушки плюс ваши загрузки (хранятся только в
+        этом браузере). Сортировка тоже локальная.
       </p>
 
       {error ? <p role="alert">{error}</p> : null}
