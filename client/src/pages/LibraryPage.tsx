@@ -49,14 +49,20 @@ export function LibraryPage() {
 
   useEffect(() => {
     let cancelled = false
-    setError(null)
-    fetchBooks()
-      .then((data) => {
-        if (!cancelled) setBooks(data)
-      })
-      .catch(() => {
+
+    void (async () => {
+      await Promise.resolve()
+      if (cancelled) return
+      setError(null)
+      try {
+        const data = await fetchBooks()
+        if (cancelled) return
+        setBooks(data)
+      } catch {
         if (!cancelled) setError('Не удалось загрузить список (заглушка).')
-      })
+      }
+    })()
+
     return () => {
       cancelled = true
     }
