@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import type { SentenceBlock } from '@/features/reader/types'
 
 export type TranscriptViewProps = {
@@ -12,6 +13,14 @@ export function TranscriptView({
   activeWordId,
   onWordSeek,
 }: TranscriptViewProps) {
+  useEffect(() => {
+    if (!activeWordId) return
+    const el = document.querySelector<HTMLElement>(
+      `[data-word-id="${CSS.escape(activeWordId)}"]`,
+    )
+    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [activeWordId])
+
   return (
     <div className="reader-transcript" lang="ru">
       {sentences.map((sentence) => (

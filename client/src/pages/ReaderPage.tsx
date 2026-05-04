@@ -8,24 +8,68 @@ import { findActiveWordId } from '@/features/reader/lib/activeWordAt'
 import { fetchReaderContentStub } from '@/features/reader/stubs/fetchReaderContentStub'
 import type { ReaderBundle } from '@/features/reader/types'
 
+type ReaderBookViewProps = {
+  bundle: ReaderBundle
+}
+
+function ReaderBookView({ bundle }: ReaderBookViewProps) {
+  const playback = useReaderPlaybackState(
+    bundle.audio.url,
+    bundle.audio.durationSec,
+  )
+
+  const activeWordId = useMemo(
+    () => findActiveWordId(bundle.sync.sentences, playback.currentSec),
+    [bundle.sync.sentences, playback.currentSec],
+  )
+
+  return (
+    <ReaderShell
+      title={bundle.title}
+      backHref="/library"
+      dock={<AudioDock playback={playback} />}
+    >
+      <p className="muted reader-hint">
+        Демо-аудио и таймкоды синхронизации — заглушка до API. Тап по слову или
+        по шкале перематывает воспроизведение.
+      </p>
+      <TranscriptView
+        sentences={bundle.sync.sentences}
+        activeWordId={activeWordId}
+        onWordSeek={(sec) => {
+          playback.seek(sec)
+          if (playback.canPlay && !playback.playing) playback.setPlaying(true)
+        }}
+      />
+    </ReaderShell>
+  )
+}
+
 export function ReaderPage() {
   const { bookId } = useParams()
+  const trimmedId = bookId?.trim() ?? ''
+
   const [bundle, setBundle] = useState<ReaderBundle | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!bookId) {
-      setBundle(null)
-      setLoading(false)
-      setError('Книга не указана.')
-      return
-    }
     let cancelled = false
-    setLoading(true)
-    setError(null)
-    fetchReaderContentStub(bookId)
-      .then((data) => {
+
+    void (async () => {
+      if (!trimmedId) {
+        if (cancelled) return
+        setBundle(null)
+        setLoading(false)
+        setError('Книга не указана.')
+        return
+      }
+
+      setLoading(true)
+      setError(null)
+
+      try {
+        const data = await fetchReaderContentStub(trimmedId)
         if (cancelled) return
         if (!data) {
           setBundle(null)
@@ -33,25 +77,17 @@ export function ReaderPage() {
           return
         }
         setBundle(data)
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) setError('Не удалось загрузить контент.')
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false)
-      })
+      }
+    })()
+
     return () => {
       cancelled = true
     }
-  }, [bookId])
-
-  const durationSec = bundle?.audio.durationSec ?? 0
-  const playback = useReaderPlaybackState(durationSec)
-
-  const activeWordId = useMemo(() => {
-    if (!bundle) return null
-    return findActiveWordId(bundle.sync.sentences, playback.currentSec)
-  }, [bundle, playback.currentSec])
+  }, [trimmedId])
 
   if (loading) {
     return (
@@ -70,21 +106,9 @@ export function ReaderPage() {
   }
 
   return (
-    <ReaderShell
-      title={bundle.title}
-      backHref="/library"
-      dock={<AudioDock playback={playback} />}
-    >
-      <p className="muted reader-hint">
-        Подсветка по таймкоду и кнопка «Play» без реального аудио — задел под{' '}
-        <code>feat/client/reader-audio-sync</code>. Тап по слову перематывает
-        локальное время.
-      </p>
-      <TranscriptView
-        sentences={bundle.sync.sentences}
-        activeWordId={activeWordId}
-        onWordSeek={(sec) => playback.seek(sec)}
-      />
-    </ReaderShell>
+    <ReaderBookView
+      key={`${bundle.bookId}|${bundle.audio.url}|${bundle.audio.durationSec}`}
+      bundle={bundle}
+    />
   )
 }
