@@ -13,18 +13,26 @@ export type AudioDockProps = {
 }
 
 export function AudioDock({ playback }: AudioDockProps) {
-  const { currentSec, playing, durationSec, togglePlay, seek, canPlay } =
-    playback
+  const {
+    audioCurrentSec,
+    audioDurationSec,
+    playing,
+    togglePlay,
+    seekAudio,
+    canPlay,
+  } = playback
   const pct =
-    durationSec > 0 ? Math.min(100, (currentSec / durationSec) * 100) : 0
+    audioDurationSec > 0
+      ? Math.min(100, (audioCurrentSec / audioDurationSec) * 100)
+      : 0
 
   const onProgressPointer = useCallback(
     (clientX: number, width: number, left: number) => {
-      if (durationSec <= 0 || width <= 0) return
+      if (audioDurationSec <= 0 || width <= 0) return
       const x = Math.min(Math.max(clientX - left, 0), width)
-      seek((x / width) * durationSec)
+      seekAudio((x / width) * audioDurationSec)
     },
-    [durationSec, seek],
+    [audioDurationSec, seekAudio],
   )
 
   return (
@@ -53,18 +61,18 @@ export function AudioDock({ playback }: AudioDockProps) {
             onProgressPointer(e.clientX, r.width, r.left)
           }}
           onKeyDown={(e) => {
-            if (durationSec <= 0) return
+            if (audioDurationSec <= 0) return
             if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
               e.preventDefault()
-              const step = durationSec * 0.05
-              seek(
+              const step = audioDurationSec * 0.05
+              seekAudio(
                 e.key === 'ArrowLeft'
-                  ? currentSec - step
-                  : currentSec + step,
+                  ? audioCurrentSec - step
+                  : audioCurrentSec + step,
               )
             }
           }}
-          tabIndex={durationSec > 0 ? 0 : -1}
+          tabIndex={audioDurationSec > 0 ? 0 : -1}
         >
           <div
             className="reader-audio-dock__progress-fill"
@@ -72,8 +80,8 @@ export function AudioDock({ playback }: AudioDockProps) {
           />
         </div>
         <div className="reader-audio-dock__times">
-          <span>{formatTime(currentSec)}</span>
-          <span className="muted">{formatTime(durationSec)}</span>
+          <span>{formatTime(audioCurrentSec)}</span>
+          <span className="muted">{formatTime(audioDurationSec)}</span>
         </div>
       </div>
     </div>

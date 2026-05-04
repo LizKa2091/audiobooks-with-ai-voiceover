@@ -1,21 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 export type ReaderPlaybackState = {
-  /** Позиция в шкале синхронизации (как в разметке слов), сек */
-  currentSec: number
+  /** Шкала синхронизации текста (слова / API), сек — для подсветки */
+  contentSec: number
+  /** Реальное время воспроизведения файла — для таймера и шкалы в доке */
+  audioCurrentSec: number
+  audioDurationSec: number
   playing: boolean
-  /** Длина контента для UI (как в `ReaderBundle.audio.durationSec`) */
-  durationSec: number
   setPlaying: (v: boolean) => void
+  /** Перейти к позиции в шкале синхронизации (тап по слову) */
   seek: (contentSec: number) => void
+  /** Перейти к позиции в аудиофайле (скраббер в доке) */
+  seekAudio: (audioSec: number) => void
   togglePlay: () => void
-  /** Можно запускать воспроизведение (есть URL и метаданные аудио) */
   canPlay: boolean
 }
 
 /**
- * Плеер читалки: реальное аудио + привязка к логической длине синхронизации.
- * Логическая длина (`syncDurationSec`) может отличаться от длительности файла.
+ * Реальное аудио + отображение на шкале синхронизации текста.
+ * Длительность файла и логическая длина синка могут различаться: подсветка
+ * идёт по contentSec, таймер в доке — по реальному времени аудио.
  */
 export function useReaderPlaybackState(
   audioUrl: string | undefined,
@@ -23,7 +27,8 @@ export function useReaderPlaybackState(
 ): ReaderPlaybackState {
   const sync = Math.max(0, syncDurationSec)
 
-  const [currentSec, setCurrentSec] = useState(0)
+  const [contentSec, setContentSec] = useState(0)
+  const [audioNowSec, setAudioNowSec] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [audioDuration, setAudioDuration] = useState(0)
 
@@ -39,10 +44,10 @@ export function useReaderPlaybackState(
   )
 
   const audioTimeFromContent = useCallback(
-    (contentSec: number) => {
+    (sec: number) => {
       const d = audioDuration
       if (!(d > 0) || sync <= 0) return 0
-      const clamped = Math.min(Math.max(contentSec, 0), sync)
+      const clamped = Math.min(Math.max(sec, 0), sync)
       return (clamped / sync) * d
     },
     [audioDuration, sync],
@@ -55,6 +60,11 @@ export function useReaderPlaybackState(
         audioRef.current.src = ''
         audioRef.current = null
       }
+      void Promise.resolve().then(() => {
+        setAudioNowSec(0)
+        setAudioDuration(0)
+        setContentSec(0)
+      })
       return
     }
 
@@ -67,10 +77,19 @@ export function useReaderPlaybackState(
       if (Number.isFinite(dur) && dur > 0) setAudioDuration(dur)
     }
     const onPlay = () => setPlaying(true)
-    const onPause = () => setPlaying(false)
+    const onPause = () => {
+      setPlaying(false)
+      const dur = a.duration
+      if (!(Number.isFinite(dur) && dur > 0)) return
+      const at = a.currentTime
+      setAudioNowSec(at)
+      if (sync > 0) setContentSec(Math.min((at / dur) * sync, sync))
+    }
     const onEnded = () => {
       setPlaying(false)
-      setCurrentSec(sync)
+      setContentSec(sync)
+      const dur = a.duration
+      if (Number.isFinite(dur) && dur > 0) setAudioNowSec(dur)
     }
 
     a.addEventListener('loadedmetadata', onLoaded)
@@ -96,7 +115,11 @@ export function useReaderPlaybackState(
 
     let raf = 0
     const tick = () => {
-      if (!a.paused) setCurrentSec(contentFromAudioTime(a.currentTime))
+      if (!a.paused) {
+        const at = a.currentTime
+        setAudioNowSec(at)
+        setContentSec(contentFromAudioTime(at))
+      }
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
@@ -104,15 +127,30 @@ export function useReaderPlaybackState(
   }, [playing, contentFromAudioTime])
 
   const seek = useCallback(
-    (contentSec: number) => {
-      const next = Math.min(Math.max(contentSec, 0), sync)
+    (nextContent: number) => {
+      const next = Math.min(Math.max(nextContent, 0), sync)
       const a = audioRef.current
       if (a && audioDuration > 0) {
-        a.currentTime = audioTimeFromContent(next)
+        const at = audioTimeFromContent(next)
+        a.currentTime = at
+        setAudioNowSec(at)
       }
-      setCurrentSec(next)
+      setContentSec(next)
     },
     [audioDuration, audioTimeFromContent, sync],
+  )
+
+  const seekAudio = useCallback(
+    (audioSec: number) => {
+      const d = audioDuration
+      const a = audioRef.current
+      if (!(d > 0) || !a) return
+      const next = Math.min(Math.max(audioSec, 0), d)
+      a.currentTime = next
+      setAudioNowSec(next)
+      setContentSec(contentFromAudioTime(next))
+    },
+    [audioDuration, contentFromAudioTime],
   )
 
   const setPlayingControlled = useCallback((v: boolean) => {
@@ -135,11 +173,13 @@ export function useReaderPlaybackState(
   const canPlay = Boolean(audioUrl?.trim() && audioDuration > 0)
 
   return {
-    currentSec,
+    contentSec,
+    audioCurrentSec: audioNowSec,
+    audioDurationSec: audioDuration,
     playing,
-    durationSec: sync,
     setPlaying: setPlayingControlled,
     seek,
+    seekAudio,
     togglePlay,
     canPlay,
   }

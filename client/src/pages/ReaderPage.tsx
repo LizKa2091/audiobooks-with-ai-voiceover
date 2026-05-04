@@ -19,8 +19,8 @@ function ReaderBookView({ bundle }: ReaderBookViewProps) {
   )
 
   const activeWordId = useMemo(
-    () => findActiveWordId(bundle.sync.sentences, playback.currentSec),
-    [bundle.sync.sentences, playback.currentSec],
+    () => findActiveWordId(bundle.sync.sentences, playback.contentSec),
+    [bundle.sync.sentences, playback.contentSec],
   )
 
   return (
