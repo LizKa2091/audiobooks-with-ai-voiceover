@@ -55,7 +55,7 @@ function mergeStubAndUserBooks(
   return [...byId.values()]
 }
 
-export async function fetchBooks(): Promise<BookSummary[]> {
+export async function fetchBooksMock(): Promise<BookSummary[]> {
   await stubDelay()
   return mergeStubAndUserBooks(MOCK_BOOKS, readStoredUserBooks())
 }

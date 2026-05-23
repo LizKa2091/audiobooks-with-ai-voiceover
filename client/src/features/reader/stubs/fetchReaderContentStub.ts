@@ -64,8 +64,8 @@ function mockBundle(bookId: string): ReaderBundle {
   }
 }
 
-/** Заменится на GET /books/:id/reader или аналог. */
-export async function fetchReaderContentStub(
+/** Локальная заглушка читалки (офлайн / демо-книги). */
+export async function fetchReaderContentMock(
   bookId: string,
 ): Promise<ReaderBundle | null> {
   await stubDelay(280)

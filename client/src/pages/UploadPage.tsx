@@ -1,12 +1,11 @@
 import { useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { UploadPipelineSteps } from '@/features/upload/components/UploadPipelineSteps'
+import { runUploadPipeline } from '@/api/upload'
 import {
-  runUploadPipelineStub,
   UPLOAD_PIPELINE_STEPS,
   type UploadPipelineResult,
 } from '@/features/upload/pipeline'
-import { appendUploadedBook, notifyLibraryChanged } from '@/lib/localLibrary'
 import { formatBytes } from '@/lib/formatBytes'
 
 type Phase = 'idle' | 'running' | 'done' | 'error'
@@ -39,11 +38,9 @@ export function UploadPage() {
     setPhase('running')
     setCurrentStep(0)
     try {
-      const res = await runUploadPipelineStub(file.name, (index) => {
+      const res = await runUploadPipeline(file, (index) => {
         setCurrentStep(index)
       })
-      appendUploadedBook(res)
-      notifyLibraryChanged()
       setResult(res)
       setPhase('done')
     } catch {
@@ -56,8 +53,8 @@ export function UploadPage() {
     <div className="page page--wide">
       <h1>Загрузка PDF</h1>
       <p className="muted">
-        Выберите файл. Обработка выполняется на заглушках — без реального бэкенда
-        и без отправки данных в сеть.
+        Выберите PDF. Если API запущен, файл уйдёт на сервер; иначе — локальная
+        демо-обработка.
       </p>
 
       <div className="upload-panel">
@@ -133,8 +130,8 @@ export function UploadPage() {
       {phase === 'done' && result ? (
         <div className="upload-success">
           <p>
-            Книга «{result.title}» условно готова (стаб). Откройте в читалке или
-            вернитесь в библиотеку.
+            Книга «{result.title}» готова. Откройте в читалке или вернитесь в
+            библиотеку.
           </p>
           <div className="cta-row">
             <Link

@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import { MockDataBanner } from '@/components/MockDataBanner'
 import './AppLayout.css'
 
 function navClass({ isActive }: { isActive: boolean }): string {
@@ -23,6 +24,7 @@ export function AppLayout() {
           </NavLink>
         </nav>
       </header>
+      <MockDataBanner />
       <main className="app-main">
         <Outlet />
       </main>

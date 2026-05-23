@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { fetchBooks } from '@/api/stubs/books'
+import { fetchBooks } from '@/api/books'
 import { LIBRARY_CHANGED_EVENT } from '@/lib/localLibrary'
 import {
   isLibrarySortKey,
@@ -86,11 +86,10 @@ export function LibraryPage() {
     <div className="page page--wide">
       <h1>Библиотека</h1>
       <p className="muted">
-        Плейлист: демо-книги из заглушки плюс ваши загрузки (хранятся только в
-        этом браузере). Сортировка тоже локальная.
+        Плейлист загруженных книг. Сортировка сохраняется в этом браузере.
       </p>
 
-      {error ? <p role="alert">{error}</p> : null}
+      {error ? <p className="upload-error" role="alert">{error}</p> : null}
 
       {books === null && !error ? <p>Загрузка…</p> : null}
 

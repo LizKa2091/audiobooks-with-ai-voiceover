@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
+import { fetchReaderContent } from '@/api/reader'
 import { AudioDock } from '@/features/reader/components/AudioDock'
 import { ReaderShell } from '@/features/reader/components/ReaderShell'
 import { TranscriptView } from '@/features/reader/components/TranscriptView'
 import { useReaderPlaybackState } from '@/features/reader/hooks/useReaderPlaybackState'
 import { findActiveWordId } from '@/features/reader/lib/activeWordAt'
-import { fetchReaderContentStub } from '@/features/reader/stubs/fetchReaderContentStub'
 import type { ReaderBundle } from '@/features/reader/types'
 
 type ReaderBookViewProps = {
@@ -30,8 +30,7 @@ function ReaderBookView({ bundle }: ReaderBookViewProps) {
       dock={<AudioDock playback={playback} />}
     >
       <p className="muted reader-hint">
-        Демо-аудио и таймкоды синхронизации — заглушка до API. Тап по слову или
-        по шкале перематывает воспроизведение.
+        Тап по слову или по шкале перематывает воспроизведение.
       </p>
       <TranscriptView
         sentences={bundle.sync.sentences}
@@ -51,43 +50,74 @@ export function ReaderPage() {
 
   const [bundle, setBundle] = useState<ReaderBundle | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [processing, setProcessing] = useState(false)
+  const [notFound, setNotFound] = useState(false)
 
   useEffect(() => {
     let cancelled = false
 
-    void (async () => {
+    async function load() {
       if (!trimmedId) {
         if (cancelled) return
         setBundle(null)
+        setProcessing(false)
+        setNotFound(true)
         setLoading(false)
-        setError('Книга не указана.')
         return
       }
 
       setLoading(true)
-      setError(null)
+      setNotFound(false)
 
-      try {
-        const data = await fetchReaderContentStub(trimmedId)
-        if (cancelled) return
-        if (!data) {
-          setBundle(null)
-          setError('Нет данных для этой книги (стаб).')
-          return
-        }
-        setBundle(data)
-      } catch {
-        if (!cancelled) setError('Не удалось загрузить контент.')
-      } finally {
-        if (!cancelled) setLoading(false)
+      const result = await fetchReaderContent(trimmedId)
+      if (cancelled) return
+
+      if (result.kind === 'processing') {
+        setBundle(null)
+        setProcessing(true)
+        setLoading(false)
+        return
       }
-    })()
+
+      if (result.kind === 'not_found') {
+        setBundle(null)
+        setProcessing(false)
+        setNotFound(true)
+        setLoading(false)
+        return
+      }
+
+      setBundle(result.bundle)
+      setProcessing(false)
+      setLoading(false)
+    }
+
+    void load()
 
     return () => {
       cancelled = true
     }
   }, [trimmedId])
+
+  useEffect(() => {
+    if (!trimmedId || !processing) return
+
+    let cancelled = false
+    const timer = window.setInterval(() => {
+      void fetchReaderContent(trimmedId).then((result) => {
+        if (cancelled) return
+        if (result.kind === 'ready') {
+          setBundle(result.bundle)
+          setProcessing(false)
+        }
+      })
+    }, 3000)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [trimmedId, processing])
 
   if (loading) {
     return (
@@ -97,10 +127,30 @@ export function ReaderPage() {
     )
   }
 
-  if (error || !bundle) {
+  if (processing) {
     return (
       <div className="page">
-        <p role="alert">{error ?? 'Нет данных.'}</p>
+        <h1>Обработка книги</h1>
+        <p className="muted">
+          Озвучка ещё идёт на сервере. Страница обновится автоматически, когда
+          контент будет готов.
+        </p>
+        <Link to="/library" className="button">
+          В библиотеку
+        </Link>
+      </div>
+    )
+  }
+
+  if (notFound || !bundle) {
+    return (
+      <div className="page">
+        <p className="muted">
+          {trimmedId ? 'Книга не найдена.' : 'Книга не указана.'}
+        </p>
+        <Link to="/library" className="button">
+          В библиотеку
+        </Link>
       </div>
     )
   }
