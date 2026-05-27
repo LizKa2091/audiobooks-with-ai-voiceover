@@ -21,34 +21,38 @@ ingest (S3 upload) → ocr (pypdf / Tesseract) → cleanup → structure (spaCy)
 
 ## Быстрый старт
 
+### Весь проект в Docker (из корня репозитория)
+
 ```bash
 # из корня репозитория
-docker compose up -d
+cp server/.env.example server/.env   # опционально
+docker compose up -d --build
+```
+
+Поднимаются: Postgres, Redis, MinIO, **api**, **worker**, **client** (nginx на http://localhost:5173).
+
+### Локально (только инфра в Docker)
+
+```bash
+docker compose up -d postgres redis minio minio-init
 
 cd server
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python -m spacy download ru_core_news_sm
 cp .env.example .env
-# Заполните YANDEX_API_KEY и YANDEX_FOLDER_ID (или TTS_PROVIDER=mock для локальных тестов)
 
 alembic upgrade head
 
 # терминал 1 — API
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# терминал 2 — воркер (нужны tesseract + poppler на macOS: brew install tesseract tesseract-lang poppler)
+# терминал 2 — воркер
 celery -A app.tasks.celery_app worker --loglevel=info
 ```
 
-Воркер в Docker (с Tesseract и spaCy):
-
-```bash
-docker compose up -d worker
-```
-
-Фронтенд: `VITE_API_BASE_URL=http://localhost:8000` в `client/.env`.
+Фронтенд: `cd client && npm run dev`, в `.env` — `VITE_API_BASE_URL=http://localhost:8000`.
 
 ## Переменные окружения
 
